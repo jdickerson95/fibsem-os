@@ -9,22 +9,39 @@ Requirements:
   - Same as ``example_zeiss.py`` (Windows, SmartSEM, COM)
   - SmartSEM must allow read/write of working distance (``AP_WD`` / ``AP_FIB_WD``);
     see ``fibsem.microscopes.zeiss_api.crossbeam_client`` helpers.
+
+By default loads ``fibsem/config/zeiss-configuration.yaml`` (Zeiss-safe 1024×768
+defaults). Override with ``setup_session(..., config_path=...)`` if needed.
 """
 
 from __future__ import annotations
 
+import argparse
 import logging
+import os
 
 from fibsem import calibration, utils
+from fibsem.config import CONFIG_PATH
 from fibsem.structures import BeamType, FibsemRectangle, ImageSettings
+
+DEFAULT_ZEISS_MICROSCOPE_CONFIG = os.path.join(CONFIG_PATH, "zeiss-configuration.yaml")
 
 logging.basicConfig(level=logging.INFO)
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Zeiss ion-beam metric autofocus example.")
+    parser.add_argument(
+        "--config",
+        default=DEFAULT_ZEISS_MICROSCOPE_CONFIG,
+        help="Microscope YAML (default: fibsem/config/zeiss-configuration.yaml).",
+    )
+    args = parser.parse_args()
+
     microscope, settings = utils.setup_session(
         manufacturer="Zeiss",
         ip_address="",
+        config_path=args.config,
     )
 
     wd_before = microscope.get("working_distance", BeamType.ION)
@@ -61,3 +78,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

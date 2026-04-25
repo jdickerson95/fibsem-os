@@ -26,11 +26,12 @@ RUNBOOK (read before first run on hardware)
      site differs, adjust ``ZeissMicroscope._api_grab_path`` or SmartSEM output.
 
 4. **Configuration YAML**
-   ``setup_session`` loads the default microscope YAML (see ``fibsem.config``
-   ``DEFAULT_CONFIGURATION_PATH``), then forces ``manufacturer="Zeiss"``.
-   Imaging defaults come from the ``imaging:`` block unless you override
-   ``--config``. This script defaults **autocontrast off** unless you pass
-   ``--autocontrast`` (avoids extra auto‑brightness passes on first try).
+   By default this script loads ``fibsem/config/zeiss-configuration.yaml``
+   (1024×768 imaging / beam defaults for SmartSEM). Pass ``--config PATH`` to
+   use another microscope YAML. ``setup_session`` still passes
+   ``manufacturer="Zeiss"``. This script also defaults **autocontrast off**
+   unless you pass ``--autocontrast`` (YAML ``imaging.autocontrast`` is false
+   for Zeiss config; the flag can override for testing).
 
 5. **First run (recommended)**
    - Use **electron only** first (no FIB column switch)::
@@ -53,6 +54,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import sys
 
 import matplotlib
@@ -61,7 +63,10 @@ matplotlib.use("TkAgg", force=True)
 import matplotlib.pyplot as plt
 
 from fibsem import acquire, utils
+from fibsem.config import CONFIG_PATH
 from fibsem.structures import BeamType
+
+DEFAULT_ZEISS_MICROSCOPE_CONFIG = os.path.join(CONFIG_PATH, "zeiss-configuration.yaml")
 
 logging.basicConfig(level=logging.INFO)
 
@@ -81,8 +86,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Zeiss CrossBeam imaging smoke test.")
     parser.add_argument(
         "--config",
-        default=None,
-        help="Optional path to a microscope YAML file (passed to setup_session as config_path).",
+        default=DEFAULT_ZEISS_MICROSCOPE_CONFIG,
+        help=(
+            "Microscope YAML for setup_session (default: fibsem/config/zeiss-configuration.yaml). "
+            "Pass another path (e.g. fibsem/config/microscope-configuration.yaml) to override."
+        ),
     )
     parser.add_argument(
         "--electron-only",
