@@ -681,6 +681,70 @@ class MicroscopeClient():
 ####### /CODE FROM ROLAND
 
 
+# --- Working distance (Open Interface) -----------------------------------
+# ``AP_WD`` is the standard SmartSEM analogue for working distance in **millimetres**
+# for the **currently active** column after `set_active_beam` / `change_beam`.
+# Some Crossbeam builds expose a separate ion-column analogue; we try
+# ``AP_FIB_WD`` as a fallback when reading/writing in FIB mode if ``AP_WD`` fails.
+ZEISS_WD_AP_PRIMARY = "AP_WD"
+ZEISS_WD_AP_FIB_FALLBACK = "AP_FIB_WD"
+
+
+def get_working_distance_m(beams: Beams, beam: str) -> float:
+    """Read working distance in **metres** for SEM or FIB.
+
+    ``beam`` must be ``\"ELECTRON\"`` or ``\"ION\"`` (SmartSEM / crossbeam string).
+
+    Selects the column via :meth:`Beams.change_beam`, then reads ``AP_WD`` (mm)
+    and converts to metres. On FIB, falls back to ``AP_FIB_WD`` if ``AP_WD`` is
+    not available.
+    """
+    if beam not in ("ION", "ELECTRON"):
+        raise ValueError(f"beam must be ION or ELECTRON, got {beam!r}")
+    beams.change_beam("ION" if beam == "ION" else "ELECTRON")
+    sem = beams.sem
+    try:
+        mm = float(sem.GetValue(ZEISS_WD_AP_PRIMARY, style="float"))
+    except Exception as first:
+        if beam == "ION":
+            try:
+                mm = float(sem.GetValue(ZEISS_WD_AP_FIB_FALLBACK, style="float"))
+            except Exception as second:
+                raise RuntimeError(
+                    f"Could not read FIB working distance (tried {ZEISS_WD_AP_PRIMARY!r} and "
+                    f"{ZEISS_WD_AP_FIB_FALLBACK!r}): {first!r} / {second!r}"
+                ) from second
+        else:
+            raise RuntimeError(
+                f"Could not read SEM working distance via {ZEISS_WD_AP_PRIMARY!r}: {first!r}"
+            ) from first
+    return mm * 1.0e-3
+
+
+def set_working_distance_m(beams: Beams, beam: str, wd_m: float) -> None:
+    """Set working distance in **metres** for SEM or FIB (see :func:`get_working_distance_m`)."""
+    if beam not in ("ION", "ELECTRON"):
+        raise ValueError(f"beam must be ION or ELECTRON, got {beam!r}")
+    beams.change_beam("ION" if beam == "ION" else "ELECTRON")
+    mm = float(wd_m) * 1.0e3
+    sem = beams.sem
+    try:
+        sem.SetValue(ZEISS_WD_AP_PRIMARY, mm)
+    except Exception as first:
+        if beam == "ION":
+            try:
+                sem.SetValue(ZEISS_WD_AP_FIB_FALLBACK, mm)
+            except Exception as second:
+                raise RuntimeError(
+                    f"Could not set FIB working distance (tried {ZEISS_WD_AP_PRIMARY!r} and "
+                    f"{ZEISS_WD_AP_FIB_FALLBACK!r}): {first!r} / {second!r}"
+                ) from second
+        else:
+            raise RuntimeError(
+                f"Could not set SEM working distance via {ZEISS_WD_AP_PRIMARY!r}: {first!r}"
+            ) from first
+
+
 # microscope.disconnect()
 # beamshift = BeamShift()
 # print(beamshift.value)

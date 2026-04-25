@@ -20,5 +20,9 @@ from fibsem.microscopes.zeiss_api.crossbeam_client import (  # noqa: F401
     Specimen,
     Stage,
     AutoFunctions,
+    get_working_distance_m,
+    set_working_distance_m,
+    ZEISS_WD_AP_PRIMARY,
+    ZEISS_WD_AP_FIB_FALLBACK,
 )
 from fibsem.microscopes.zeiss_api.tiff_handle import read_tiff, write_tiff  # noqa: F401

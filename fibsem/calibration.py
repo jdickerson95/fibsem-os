@@ -57,6 +57,11 @@ def auto_focus_beam(
 
     # get current working distance
     current_wd = microscope.get("working_distance", beam_type)
+    if current_wd is None or not np.isfinite(current_wd):
+        raise RuntimeError(
+            f"Cannot run metric-based auto_focus_beam: working distance is not available "
+            f"for {beam_type.name} on this microscope (got {current_wd!r})."
+        )
 
     if verbose:
         logging.info(f"{metric_fn.__name__} based auto-focus routine")
@@ -131,6 +136,40 @@ def _dog(img: FibsemImage, **kwargs) -> float:
     high = kwargs.get("high", 9)
     from skimage.filters import difference_of_gaussians
     return np.mean(difference_of_gaussians(np.copy(img.data), low, high))
+
+
+def _laplacian_variance(img: FibsemImage, **kwargs) -> float:
+    """Focus metric: variance of the Laplacian (higher = sharper for many samples).
+
+    Args:
+        img: Acquired image (typically with ``autocontrast=False`` for stable focus search).
+        normalize: ``"none"`` | ``"minmax"`` | ``"zscore"`` (default ``"minmax"``).
+        gaussian_sigma: Optional pre-blur (sigma in pixels) via ``scipy.ndimage.gaussian_filter``.
+
+    """
+    import cv2
+    from scipy import ndimage
+
+    data = np.asarray(img.data, dtype=np.float32)
+    if data.ndim == 3:
+        data = data[:, :, 0]
+    gaussian_sigma = float(kwargs.get("gaussian_sigma", 0.0) or 0.0)
+    if gaussian_sigma > 0.0:
+        data = ndimage.gaussian_filter(data, sigma=gaussian_sigma)
+    mode = kwargs.get("normalize", "minmax")
+    if mode == "minmax":
+        dmin, dmax = float(np.min(data)), float(np.max(data))
+        if dmax > dmin:
+            data = (data - dmin) / (dmax - dmin)
+    elif mode == "zscore":
+        std = float(np.std(data))
+        data = (data - float(np.mean(data))) / (std + 1e-12)
+    elif mode == "none" or mode is None:
+        pass
+    else:
+        raise ValueError(f"normalize must be 'none', 'minmax', or 'zscore', got {mode!r}")
+    lap = cv2.Laplacian(data, cv2.CV_64F)
+    return float(np.var(lap))
 
 def auto_charge_neutralisation(
     microscope: FibsemMicroscope,

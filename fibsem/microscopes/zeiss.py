@@ -484,8 +484,14 @@ class ZeissMicroscope(FibsemMicroscope):
             bs = beam.beam_shift.value
             return Point(x=bs.x, y=bs.y)
 
+        if key == "working_distance":
+            from fibsem.microscopes.zeiss_api.crossbeam_client import get_working_distance_m
+
+            label = "ION" if beam_type == BeamType.ION else "ELECTRON"
+            return get_working_distance_m(self.connection.beams, label)
+
         # Properties not exposed by crossbeam_client — return None for read
-        if key in ("working_distance", "voltage", "stigmation"):
+        if key in ("voltage", "stigmation"):
             logging.debug(f"_get: key '{key}' is not exposed by the Zeiss crossbeam_client API; returning None.")
             return None
 
@@ -538,8 +544,15 @@ class ZeissMicroscope(FibsemMicroscope):
             beam.is_blanked = value
             return
 
+        if key == "working_distance":
+            from fibsem.microscopes.zeiss_api.crossbeam_client import set_working_distance_m
+
+            label = "ION" if beam_type == BeamType.ION else "ELECTRON"
+            set_working_distance_m(self.connection.beams, label, value)
+            return
+
         # Not wired in crossbeam_client
-        if key in ("working_distance", "voltage", "stigmation",
+        if key in ("voltage", "stigmation",
                    "detector_type", "detector_mode", "detector_brightness", "detector_contrast",
                    "on"):
             logging.warning(f"_set: key '{key}' is not exposed by the Zeiss crossbeam_client API; ignored.")
